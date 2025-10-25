@@ -7,10 +7,12 @@ import { cn } from "@/lib/utils"
 
 const menuItems = [
   { icon: LayoutDashboard, label: "Dashboard", href: "/dashboard" },
+  { icon: Settings, label: "Upload Data", href: "/dashboard/settings" },
+   { icon: Coins, label: "Earn", href: "/dashboard/rewards" },
   { icon: Zap, label: "Tasks", href: "/dashboard/tasks" },
   { icon: Users, label: "Contributors", href: "/dashboard/contributors" },
-  { icon: Coins, label: "Rewards", href: "/dashboard/rewards" },
-  { icon: Settings, label: "Settings", href: "/dashboard/settings" },
+ 
+
 ]
 
 export function Sidebar() {
