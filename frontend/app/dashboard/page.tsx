@@ -78,7 +78,7 @@ export default function DashboardPage() {
             </span>
           </div>
           <p className="text-sm text-muted-foreground mb-1">Total Rewards</p>
-          <p className="text-2xl font-bold">45.2K PARAM</p>
+          <p className="text-2xl font-bold">45.2K PTK</p>
         </Card>
 
         <Card className="p-6 border-border/40">
