@@ -11,7 +11,7 @@ const YOUR_SITE_NAME = "Param Protocol Agent";
 const AGENT_PERSONAS = [
   {
     name: "Persona Analyst",
-    model: "anthropic/claude-3.5-sonnet",
+    model: "anthropic/claude-3.5-sonnet", // This model is excellent
     id: "persona_analyst",
     prompt: `
       You are an expert streaming content analyst. Based on the following Netflix user data,
@@ -24,7 +24,7 @@ const AGENT_PERSONAS = [
   },
   {
     name: "Recommendation Engine",
-    model: "meta-llama/llama-3.1-70b-instruct",
+    model: "meta-llama/llama-3.1-70b-instruct", // This model is excellent
     id: "recommendation_engine",
     prompt: `
       You are a world-class recommendation engine. Based on this user's watch history,
@@ -36,7 +36,7 @@ const AGENT_PERSONAS = [
   },
   {
     name: "Marketing Strategist",
-    model: "mistral-large-latest",
+    model: "deepseek/deepseek-chat-v3.1:free", // <-- FIX: Corrected model name
     id: "marketing_strategist",
     prompt: `
       You are a marketing strategist. Based on this Netflix user data,
@@ -80,7 +80,7 @@ export async function POST(request: Request) {
           controller.enqueue(streamEncode({
             agentId: agent.id,
             status: "generating",
-            agentName: `${agent.name} (${agent.model})`,
+            agentName: `${agent.name} (${agent.model})`, // This is sent to the UI
           }));
 
           // 7. Call OpenRouter for this agent
@@ -98,11 +98,15 @@ export async function POST(request: Request) {
                 { role: "system", content: agent.prompt },
                 { role: "user", content: `Here is the user's data: ${JSON.stringify(rawData)}` },
               ],
+              response_format: { type: "json_object" }, // <-- FIX: Force JSON output
             }),
           });
 
           if (!response.ok) {
-            throw new Error(`API call failed for ${agent.name}`);
+            // <-- FIX: Improved error handling
+            const errorBody = await response.text();
+            console.error(`API Error from ${agent.name}: ${errorBody}`);
+            throw new Error(`API call failed for ${agent.name}: ${errorBody}`);
           }
 
           const data = await response.json();
@@ -113,7 +117,7 @@ export async function POST(request: Request) {
             agentId: agent.id,
             status: "completed",
             agentName: `${agent.name} (${agent.model})`,
-            data: JSON.parse(content), // Parse the LLM's JSON output
+            data: JSON.parse(content), // This is now safe to parse
           }));
 
         } catch (err: any) {

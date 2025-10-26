@@ -9,7 +9,7 @@ const menuItems = [
   { icon: LayoutDashboard, label: "Dashboard", href: "/dashboard" },
   { icon: Settings, label: "Upload Data", href: "/dashboard/settings" },
    { icon: Coins, label: "Earn", href: "/dashboard/rewards" },
-  { icon: Zap, label: "Tasks", href: "/dashboard/tasks" },
+  { icon: Zap, label: "Probabilistic Rewards", href: "/dashboard/tasks" },
   { icon: Users, label: "Contributors", href: "/dashboard/contributors" },
  
 
