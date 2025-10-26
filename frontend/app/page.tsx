@@ -63,8 +63,8 @@ export default function Home() {
           </h1>
 
           <p className="text-lg sm:text-xl lg:text-2xl text-muted-foreground mb-12 text-balance max-w-3xl mx-auto leading-relaxed font-light">
-            PARAM Protocol enables transparent, autonomous allocation of rewards between AI agents and human
-            contributors. Built on blockchain for trust and transparency.
+            PARAM Protocol enables transparent, autonomous allocation of rewards to Human Data
+            contributors as well as AI agents. Built on blockchain for trust and transparency.
           </p>
 
           <div className="flex flex-col sm:flex-row gap-4 justify-center mb-20">
@@ -122,12 +122,12 @@ export default function Home() {
             {[
               {
                 icon: Zap,
-                title: "Task Registration",
+                title: "Data Storage",
                 description: "Register tasks as NFTs with complete metadata and ownership tracking",
               },
               {
                 icon: Users,
-                title: "Contributor Management",
+                title: "ZK-Verification",
                 description: "Assign multiple contributors with customizable reward shares",
               },
               {
@@ -142,7 +142,7 @@ export default function Home() {
               },
               {
                 icon: TrendingUp,
-                title: "Real-time Analytics",
+                title: "Probabilistic Rewards",
                 description: "Track tasks, rewards, and contributor performance in real-time",
               },
               {
@@ -176,22 +176,22 @@ export default function Home() {
             {[
               {
                 step: "1",
-                title: "Register Task",
+                title: "Share Secure Data (ZK-Proof)",
                 description: "Create a new task and mint it as an NFT with detailed metadata",
               },
               {
                 step: "2",
-                title: "Assign Contributors",
+                title: "Upload on IPFS",
                 description: "Add contributors and define their reward share percentages",
               },
               {
                 step: "3",
-                title: "Deposit Rewards",
+                title: "Fetch PTK Tokens",
                 description: "Deposit PARAM tokens into the protocol for distribution",
               },
               {
                 step: "4",
-                title: "Distribute Rewards",
+                title: "GGenerate AI Augmented DATA",
                 description: "Automatically distribute rewards based on defined shares",
               },
             ].map((item, i) => (

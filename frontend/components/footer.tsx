@@ -67,13 +67,13 @@ export default function Footer() {
           <div className="space-y-4">
             <h4 className="font-semibold text-foreground">Connect</h4>
             <div className="flex gap-4">
-              <Link href="#" className="p-2 rounded-lg bg-background hover:bg-primary/10 transition-colors">
+              <Link href="https://github.com/paramgogia/PARAM_Protocol.git" className="p-2 rounded-lg bg-background hover:bg-primary/10 transition-colors">
                 <Github size={20} className="text-muted-foreground hover:text-primary" />
               </Link>
               <Link href="#" className="p-2 rounded-lg bg-background hover:bg-primary/10 transition-colors">
                 <Twitter size={20} className="text-muted-foreground hover:text-primary" />
               </Link>
-              <Link href="#" className="p-2 rounded-lg bg-background hover:bg-primary/10 transition-colors">
+              <Link href="https://www.linkedin.com/in/paramgogia" className="p-2 rounded-lg bg-background hover:bg-primary/10 transition-colors">
                 <Linkedin size={20} className="text-muted-foreground hover:text-primary" />
               </Link>
               <Link href="#" className="p-2 rounded-lg bg-background hover:bg-primary/10 transition-colors">

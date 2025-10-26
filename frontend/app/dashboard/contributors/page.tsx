@@ -13,6 +13,7 @@ import {
   RefreshCw,
   FileText,
   Check,
+  Download, // Added
 } from "lucide-react";
 import { Textarea } from "@/components/ui/textarea";
 
@@ -67,13 +68,16 @@ export default function DataAgentPage() {
     useState<Record<string, AgentStatus>>(INITIAL_AGENTS);
   const [error, setError] = useState<string | null>(null);
 
-  // --- New Lighthouse & Data States ---
+  // --- Lighthouse & Data States ---
   const [combinedAgentData, setCombinedAgentData] = useState<any | null>(null);
   const [isLighthouseUploading, setIsLighthouseUploading] = useState(false);
   const [lighthouseError, setLighthouseError] = useState<string | null>(null);
   const [uploadSuccessCid, setUploadSuccessCid] = useState<string | null>(null);
   const [uploadedFiles, setUploadedFiles] = useState<UploadedFile[]>([]);
-  // ------------------------------------
+  
+  // --- New State for loading file content ---
+  const [isFetchingFileContent, setIsFetchingFileContent] = useState<string | null>(null);
+  // ----------------------------------------
 
   // Helper to render agent status icons
   const StatusIcon = ({ status }: { status: AgentStatus["status"] }) => {
@@ -89,7 +93,7 @@ export default function DataAgentPage() {
     return <Cpu className="w-4 h-4 text-muted-foreground/50" />;
   };
 
-  // --- MODIFIED Function: Fetch Uploaded Files ---
+  // --- Function: Fetch Uploaded Files List ---
   const fetchUploadedFiles = useCallback(async () => {
     setLighthouseError(null);
     try {
@@ -100,70 +104,81 @@ export default function DataAgentPage() {
       }
       const files: UploadedFile[] = await response.json();
 
-      // --- FIX: De-duplicate the list on the UI side ---
-      // Use a Map to ensure each CID is unique.
+      // De-duplicate the list on the UI side
       const fileMap = new Map(
-        files.map((f: UploadedFile) => [
-          f.cid, // The key (will be unique)
-          f      // The value
-        ])
+        files.map((f: UploadedFile) => [f.cid, f])
       );
-      // Convert the Map's values back into an array
       const uniqueFiles = Array.from(fileMap.values());
-      // ---------------------------------------------
       
-      setUploadedFiles(uniqueFiles); // Set the de-duplicated list
+      setUploadedFiles(uniqueFiles);
     } catch (err: any) {
       setLighthouseError(`Failed to fetch file list: ${err.message}`);
     }
-  }, []); // No dependencies needed for useCallback
+  }, []);
 
-  // --- New Effect: Fetch files on mount ---
+  // --- Effect: Fetch files on mount ---
   useEffect(() => {
     fetchUploadedFiles();
   }, [fetchUploadedFiles]);
 
-  // --- New Effect: Combine data after agents finish ---
+  // --- Effect: Combine data after agents finish ---
   useEffect(() => {
-    // Don't run this logic while agents are actively running
-    if (isLoading) {
-      return;
-    }
+    if (isLoading) return;
 
     const allAgents = Object.values(agentStatuses);
-    // Check if any agent has a status other than "pending" (i.e., a run was attempted)
     const anyAgentRan = allAgents.some((a) => a.status !== "pending");
-
     if (!anyAgentRan) {
       setCombinedAgentData(null);
       return;
     }
 
     const allComplete = allAgents.every((a) => a.status === "completed");
-
     if (allComplete) {
-      // Combine all agent data into a single object, keyed by agentId
       const combinedData = allAgents.reduce((acc, agent) => {
         acc[agent.agentId] = agent.data;
         return acc;
       }, {} as Record<string, any>);
       setCombinedAgentData(combinedData);
     } else {
-      // If any agent failed or is not complete, reset
       setCombinedAgentData(null);
     }
-  }, [agentStatuses, isLoading]); // Re-run when statuses change or loading stops
+  }, [agentStatuses, isLoading]);
+
+  // --- New Function: Load File Content ---
+  const handleLoadFile = async (cid: string) => {
+    setIsFetchingFileContent(cid);
+    setError(null); // Clear main error
+    setLighthouseError(null); // Clear lighthouse-specific error
+    try {
+      const response = await fetch(`https://gateway.lighthouse.storage/ipfs/${cid}`);
+      if (!response.ok) {
+        throw new Error("File not found or gateway error.");
+      }
+      const content = await response.text();
+
+      // Validate JSON before setting it
+      try {
+        JSON.parse(content);
+        setJsonData(content); // Success! Set the content in the textarea
+      } catch (parseError) {
+        setError("Fetched file is not valid JSON and cannot be used as input.");
+      }
+    } catch (err: any) {
+      setError(`Failed to fetch file content: ${err.message}`);
+    } finally {
+      setIsFetchingFileContent(null);
+    }
+  };
+  // -------------------------------------
 
   // Handle the agent generation process
   const handleGenerate = async () => {
     setIsLoading(true);
-    setAgentStatuses(INITIAL_AGENTS); // Reset all statuses
+    setAgentStatuses(INITIAL_AGENTS);
     setError(null);
-    // --- Reset Lighthouse/Combined data states ---
     setCombinedAgentData(null);
     setLighthouseError(null);
     setUploadSuccessCid(null);
-    // ------------------------------------------
 
     try {
       // 1. Validate JSON input
@@ -194,21 +209,17 @@ export default function DataAgentPage() {
         if (done) break;
 
         buffer += value;
-        const lines = buffer.split("\n"); // Each update is a new line
-        buffer = lines.pop() || ""; // Keep partial line
+        const lines = buffer.split("\n");
+        buffer = lines.pop() || "";
 
         for (const line of lines) {
           if (line.trim() === "") continue;
-
           try {
             const update = JSON.parse(line) as AgentStatus;
-            // 3. Update the UI state for the specific agent
+            // 3. Update the UI state
             setAgentStatuses((prev) => ({
               ...prev,
-              [update.agentId]: {
-                ...prev[update.agentId],
-                ...update,
-              },
+              [update.agentId]: { ...prev[update.agentId], ...update },
             }));
           } catch (e) {
             console.warn("Failed to parse stream chunk:", line);
@@ -223,7 +234,7 @@ export default function DataAgentPage() {
     }
   };
 
-  // --- New Function: Handle Lighthouse Upload ---
+  // --- Function: Handle Lighthouse Upload ---
   const handleLighthouseUpload = async () => {
     if (!combinedAgentData) return;
 
@@ -244,8 +255,8 @@ export default function DataAgentPage() {
       }
 
       const result = await response.json();
-      setUploadSuccessCid(result.cid); // Show success!
-      fetchUploadedFiles(); // Refresh the list of files
+      setUploadSuccessCid(result.cid);
+      fetchUploadedFiles(); // Refresh the list
     } catch (err: any) {
       setLighthouseError(err.message);
     } finally {
@@ -269,9 +280,9 @@ export default function DataAgentPage() {
       <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
         {/* Input Card */}
         <Card className="p-6 border-border/40">
-          <h2 className="text-lg font-semibold mb-2">1. Paste Raw Data</h2>
+          <h2 className="text-lg font-semibold mb-2">1. Provide Raw Data</h2>
           <p className="text-muted-foreground mb-4 text-sm">
-            Paste your verified Netflix JSON data below.
+            Paste your JSON data below or load it from a file.
           </p>
 
           <Textarea
@@ -338,15 +349,14 @@ export default function DataAgentPage() {
             ))}
           </div>
 
-          {/* --- New Lighthouse Upload Section --- */}
+          {/* --- Lighthouse Upload Section --- */}
           {combinedAgentData && !isLoading && (
             <div className="mt-6 border-t border-border/40 pt-6">
               <h3 className="text-md font-semibold mb-3">
                 3. Upload Agent Output
               </h3>
               <p className="text-sm text-muted-foreground mb-4">
-                All agents completed successfully. You can now upload the combined
-                output to Lighthouse.
+                All agents completed. You can now upload the combined output.
               </p>
               <Button
                 onClick={handleLighthouseUpload}
@@ -386,19 +396,19 @@ export default function DataAgentPage() {
               )}
             </div>
           )}
-          {/* ------------------------------------- */}
+          {/* ------------------------------- */}
         </Card>
       </div>
 
-      {/* --- New Uploaded Files Card --- */}
+      {/* --- Uploaded Files Card --- */}
       <Card className="p-6 border-border/40 mt-8">
         <div className="flex items-center justify-between mb-4">
           <div>
             <h2 className="text-lg font-semibold">
-              Uploaded Files (Lighthouse)
+              Lighthouse Files
             </h2>
             <p className="text-muted-foreground text-sm">
-              Previously uploaded agent outputs.
+              View previously uploaded files or load them as input.
             </p>
           </div>
           <Button variant="outline" size="icon" onClick={fetchUploadedFiles}>
@@ -416,7 +426,7 @@ export default function DataAgentPage() {
           )}
           {uploadedFiles.map((file) => (
             <div
-              key={file.cid} // This will now be unique
+              key={file.cid} // Unique key
               className="flex items-center justify-between p-3 border border-border/40 rounded-md bg-card/50"
             >
               <div className="flex items-center gap-3 overflow-hidden">
@@ -436,15 +446,34 @@ export default function DataAgentPage() {
                   </p>
                 </div>
               </div>
-              <Button asChild variant="ghost" size="sm">
-                <a
-                  href={`https://gateway.lighthouse.storage/ipfs/${file.cid}`}
-                  target="_blank"
-                  rel="noopener noreferrer"
+
+              {/* --- Action Buttons --- */}
+              <div className="flex items-center gap-2 flex-shrink-0">
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => handleLoadFile(file.cid)}
+                  disabled={isFetchingFileContent === file.cid || isLoading}
+                  className="flex items-center gap-1.5"
                 >
-                  View
-                </a>
-              </Button>
+                  {isFetchingFileContent === file.cid ? (
+                    <Loader2 className="w-4 h-4 animate-spin" />
+                  ) : (
+                    <Download className="w-4 h-4" />
+                  )}
+                  Load
+                </Button>
+                <Button asChild variant="ghost" size="sm">
+                  <a
+                    href={`https://gateway.lighthouse.storage/ipfs/${file.cid}`}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                  >
+                    View
+                  </a>
+                </Button>
+              </div>
+              {/* -------------------- */}
             </div>
           ))}
         </div>

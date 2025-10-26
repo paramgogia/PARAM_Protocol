@@ -364,7 +364,7 @@ const [cidList, setCidList] = useState<{ cid: string; fileName: string }[]>([]);
         <>
           {/* Balances & Info */}
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-8">
-            <Card className="p-4 border-border/40"><h3 className="font-semibold text-lg mb-2">Your PTK Balance</h3><p className="text-2xl font-bold">{ptkBalance} mPTK</p></Card>
+            <Card className="p-4 border-border/40"><h3 className="font-semibold text-lg mb-2">Your PTK Balance</h3><p className="text-2xl font-bold">{ptkBalance} PTK</p></Card>
             <Card className="p-4 border-border/40"><h3 className="font-semibold text-lg mb-2">Total NFTs Minted</h3><p className="text-2xl font-bold">{totalNFTs}</p></Card>
           </div>
 

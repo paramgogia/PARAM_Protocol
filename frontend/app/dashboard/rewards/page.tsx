@@ -154,7 +154,7 @@ export default function RewardsPage() {
         <div className="flex items-center justify-between flex-wrap gap-4">
           <div>
             <h1 className="text-4xl md:text-5xl font-bold">NFT Minting & Rewards</h1>
-            <p className="text-lg mt-2">Mint NFTs from your verified data and earn PTK rewards</p>
+            <p className="text-lg mt-2">Mint NFTs from your verified data and earn PTK rewards using 1mb.io and Lighthouse file storage</p>
           </div>
           {!account ? (
             <Button onClick={connectWallet} size="lg" className="bg-gradient-to-r from-purple-600 to-pink-600 hover:from-purple-700 hover:to-pink-700">
