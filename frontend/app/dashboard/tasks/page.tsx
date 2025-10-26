@@ -346,10 +346,10 @@ const [cidList, setCidList] = useState<{ cid: string; fileName: string }[]>([]);
 
   // --- UI Rendering ---
   return (
-    <div className="p-8 max-w-4xl mx-auto">
+    <div className="p-8 max-w-7xl mx-auto">
       {/* Header */}
       <div className="flex flex-col md:flex-row items-center justify-between mb-6 pb-4 border-b">
-        <div><h1 className="text-3xl font-bold mb-1">PARAM Protocol</h1><p className="text-muted-foreground">Mint NFTs & Get Base + Bonus Rewards.</p></div>
+        <div><h1 className="text-3xl font-bold mb-1">Probailistic Pyth Entropy Rewards</h1><p className="text-muted-foreground">Mint NFTs & Get Base + Bonus Rewards.</p></div>
         <div className="flex items-center gap-3 mt-3 md:mt-0">
           {address ? (<Button variant="outline" className="flex items-center gap-2 cursor-default"><Wallet size={16} />{address.slice(0, 6)}...{address.slice(-4)}</Button>) : (<Button onClick={() => window.location.reload()}>Connect Wallet</Button>)}
           <Button variant="outline" onClick={() => refreshData()} disabled={refreshing || !contract}><RefreshCw className={`w-4 h-4 mr-2 ${refreshing ? 'animate-spin' : ''}`} />{refreshing ? "Refreshing..." : "Refresh"}</Button>

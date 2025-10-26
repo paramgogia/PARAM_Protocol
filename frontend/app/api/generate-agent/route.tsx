@@ -1,7 +1,8 @@
 import { NextResponse } from "next/server";
 
-// 1. YOUR API KEY (Read from environment variables)
+// 1. YOUR API KEYS (Read from environment variables)
 const OPENROUTER_API_KEY = process.env.OPENROUTER_API_KEY;
+const GEMINI_API_KEY = process.env.GEMINI_API_KEY; // <-- ADDED
 
 // 2. YOUR SITE INFO
 const YOUR_SITE_URL = process.env.NEXT_PUBLIC_SITE_URL || "http://localhost:3000";
@@ -11,8 +12,9 @@ const YOUR_SITE_NAME = "Param Protocol Agent";
 const AGENT_PERSONAS = [
   {
     name: "Persona Analyst",
-    model: "anthropic/claude-3.5-sonnet", // This model is excellent
+    model: "anthropic/claude-3.5-sonnet",
     id: "persona_analyst",
+    api: "openrouter", // <-- Specify API
     prompt: `
       You are an expert streaming content analyst. Based on the following Netflix user data,
       please generate a synthetic "Viewer Persona".
@@ -24,8 +26,9 @@ const AGENT_PERSONAS = [
   },
   {
     name: "Recommendation Engine",
-    model: "meta-llama/llama-3.1-70b-instruct", // This model is excellent
+    model: "meta-llama/llama-3.1-70b-instruct",
     id: "recommendation_engine",
+    api: "openrouter", // <-- Specify API
     prompt: `
       You are a world-class recommendation engine. Based on this user's watch history,
       generate a list of 5 new "Actionable Recommendations" that this user would love.
@@ -36,8 +39,9 @@ const AGENT_PERSONAS = [
   },
   {
     name: "Marketing Strategist",
-    model: "deepseek/deepseek-chat-v3.1:free", // <-- FIX: Corrected model name
+    model: "gemini-2.5-flash-preview-09-2025", // <-- UPDATED model
     id: "marketing_strategist",
+    api: "gemini", // <-- UPDATED API
     prompt: `
       You are a marketing strategist. Based on this Netflix user data,
       create a "Targeted Marketing Profile".
@@ -58,10 +62,6 @@ function streamEncode(data: object): Uint8Array {
 
 // 4. The main API POST handler - now returns a stream
 export async function POST(request: Request) {
-  if (!OPENROUTER_API_KEY) {
-    return NextResponse.json({ error: "Server is not configured with an API key." }, { status: 500 });
-  }
-
   let rawData;
   try {
     const body = await request.json();
@@ -73,44 +73,98 @@ export async function POST(request: Request) {
   // 5. Create a ReadableStream to send updates
   const stream = new ReadableStream({
     async start(controller) {
-      
+
       for (const agent of AGENT_PERSONAS) {
         try {
           // 6. Tell the client which agent is starting
           controller.enqueue(streamEncode({
             agentId: agent.id,
             status: "generating",
-            agentName: `${agent.name} (${agent.model})`, // This is sent to the UI
+            agentName: `${agent.name} (${agent.model})`,
           }));
 
-          // 7. Call OpenRouter for this agent
-          const response = await fetch("https://openrouter.ai/api/v1/chat/completions", {
-            method: "POST",
-            headers: {
-              "Authorization": `Bearer ${OPENROUTER_API_KEY}`,
-              "HTTP-Referer": YOUR_SITE_URL,
-              "X-Title": YOUR_SITE_NAME,
-              "Content-Type": "application/json",
-            },
-            body: JSON.stringify({
-              model: agent.model,
-              messages: [
-                { role: "system", content: agent.prompt },
-                { role: "user", content: `Here is the user's data: ${JSON.stringify(rawData)}` },
-              ],
-              response_format: { type: "json_object" }, // <-- FIX: Force JSON output
-            }),
-          });
+          let content: string;
 
-          if (!response.ok) {
-            // <-- FIX: Improved error handling
-            const errorBody = await response.text();
-            console.error(`API Error from ${agent.name}: ${errorBody}`);
-            throw new Error(`API call failed for ${agent.name}: ${errorBody}`);
+          // 7. Check which API to call
+          if (agent.api === "gemini") {
+            // --- GEMINI API CALL ---
+            if (!GEMINI_API_KEY) {
+              throw new Error("Server is not configured with a GEMINI_API_KEY.");
+            }
+            
+            const apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/${agent.model}:generateContent?key=${GEMINI_API_KEY}`;
+            
+            const response = await fetch(apiUrl, {
+              method: "POST",
+              headers: {
+                "Content-Type": "application/json",
+              },
+              body: JSON.stringify({
+                // Use systemInstruction for the main prompt
+                systemInstruction: {
+                  parts: [{ text: agent.prompt }]
+                },
+                contents: [
+                  { 
+                    role: "user", 
+                    parts: [{ text: `Here is the user's data: ${JSON.stringify(rawData)}` }] 
+                  }
+                ],
+                generationConfig: {
+                  // Force JSON output
+                  responseMimeType: "application/json",
+                },
+              }),
+            });
+
+            if (!response.ok) {
+              const errorBody = await response.json();
+              console.error(`API Error from ${agent.name} (Gemini):`, JSON.stringify(errorBody, null, 2));
+              throw new Error(`Gemini API call failed for ${agent.name}: ${errorBody.error?.message || 'Unknown error'}`);
+            }
+
+            const data = await response.json();
+            const extractedContent = data.candidates?.[0]?.content?.parts?.[0]?.text;
+
+            if (!extractedContent) {
+              console.error("Invalid response structure from Gemini:", data);
+              throw new Error(`Failed to parse response from ${agent.name} (Gemini)`);
+            }
+            content = extractedContent;
+
+          } else {
+            // --- OPENROUTER API CALL (Default) ---
+            if (!OPENROUTER_API_KEY) {
+              throw new Error("Server is not configured with an OPENROUTER_API_KEY.");
+            }
+
+            const response = await fetch("https://openrouter.ai/api/v1/chat/completions", {
+              method: "POST",
+              headers: {
+                "Authorization": `Bearer ${OPENROUTER_API_KEY}`,
+                "HTTP-Referer": YOUR_SITE_URL,
+                "X-Title": YOUR_SITE_NAME,
+                "Content-Type": "application/json",
+              },
+              body: JSON.stringify({
+                model: agent.model,
+                messages: [
+                  { role: "system", content: agent.prompt },
+                  { role: "user", content: `Here is the user's data: ${JSON.stringify(rawData)}` },
+                ],
+                response_format: { type: "json_object" },
+              }),
+            });
+
+            if (!response.ok) {
+              const errorBody = await response.text();
+              console.error(`API Error from ${agent.name} (OpenRouter): ${errorBody}`);
+              throw new Error(`OpenRouter API call failed for ${agent.name}: ${errorBody}`);
+            }
+
+            const data = await response.json();
+            content = data.choices[0].message.content;
           }
-
-          const data = await response.json();
-          const content = data.choices[0].message.content;
 
           // 8. Tell the client this agent is done and send its data
           controller.enqueue(streamEncode({
@@ -122,6 +176,7 @@ export async function POST(request: Request) {
 
         } catch (err: any) {
           // 9. Send any errors to the client
+          console.error(`Error processing agent ${agent.id}:`, err);
           controller.enqueue(streamEncode({
             agentId: agent.id,
             status: "error",
@@ -130,7 +185,7 @@ export async function POST(request: Request) {
           }));
         }
       }
-      
+
       // 10. Close the stream
       controller.close();
     },
@@ -138,6 +193,6 @@ export async function POST(request: Request) {
 
   // 11. Return the stream
   return new Response(stream, {
-    headers: { "Content-Type": "text/plain" },
+    headers: { "Content-Type": "text/plain; charset=utf-8" },
   });
 }
